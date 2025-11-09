@@ -1,92 +1,88 @@
-# Banking Application
+# Banking-App
 
-A simple banking application built with Go that demonstrates basic banking operations using REST APIs.
+A simple Go backend for a banking application.
 
-## Features
+## Table of Contents
 
-- Create bank accounts
-- Check account balance
-- Deposit money
-- Transfer money between accounts
+* Overview
+* Architecture & Key Concepts
+* API Endpoints
+* Worker Pooling and Goroutines
+* Why Transaction Request and Execution are Decoupled
+* Setup & Running
+* Future Improvements
+
+## Overview
+
+This project implements a REST API backend for basic banking operations including account creation, balance checking, deposits, withdrawals, and money transfers. It demonstrates clean separation of concerns: API routing, business logic, transaction management, and concurrency handling.
+
+## Architecture & Key Concepts
+
+* `internals/api/router.go`: Defines all HTTP routes and binds them to handler functions.
+* `internals/api/handlers`: Handler functions parse requests, call the business logic, and return responses.
+* `internals/service`: Handles core banking operations such as account management and transactions.
+* `internals/repository`: Interfaces with the data store to manage account and transaction records.
+
+Transactions are decoupled into **request** and **execution** phases:
+
+* The request phase receives and validates the transaction.
+* The execution phase applies the changes atomically to ensure consistency and proper logging.
 
 ## API Endpoints
 
-### Create Account
+| HTTP Method               | Path                  | Description                                                                              |
+| ------------------------- | --------------------- | ---------------------------------------------------------------------------------------- |
+| `POST /account`           | `/account`            | Create a new bank account.                                                               |
+| `GET /balance`            | `/balance`            | Retrieve the current balance of an account.                                              |
+| `POST /transfer`          | `/transfer`           | Submit a transfer request from one account to another. Handles validation and execution. |
+| `POST /deposit`           | `/deposit`            | Deposit funds into an account.                                                           |
+| `POST /withdraw`          | `/withdraw`           | Withdraw funds from an account.                                                          |
+| `GET /transaction-status` | `/transaction-status` | Check the status of a transaction.                                                       |
+
+## Worker Pooling and Goroutines
+
+The application uses goroutines with worker pools to handle transactions concurrently. This design allows:
+
+* Efficient processing of multiple simultaneous transactions.
+* Non-blocking request handling to improve throughput.
+* Controlled concurrency using a fixed number of worker goroutines.
+* Thread-safe execution of transactions by synchronizing access to shared account data.
+
+Transactions are sent to a channel, and worker goroutines pick them up to execute in a safe and atomic manner. This ensures scalability and reliability in high-load scenarios.
+
+## Why Transaction Request and Execution are Decoupled
+
+* **Validation & Authorization**: Ensure user permissions, account ownership, and sufficient balance before execution.
+* **Atomicity**: Apply debit/credit and record transactions in a single operation.
+* **Separation of Concerns**: Keeps HTTP handling separate from business logic.
+* **Extensibility**: Easier to implement asynchronous processing, retries, logging, and audit trails.
+* **Error Handling & Retries**: Centralized execution logic allows robust failure handling.
+* **Audit & Traceability**: Track request intent separately from execution outcome for compliance.
+
+## Setup & Running
+
+1. Clone the repository:
+
 ```bash
-curl -X POST http://localhost:8080/accounts -H "Content-Type: application/json" -d "{\"id\":\"alice\"}"
+git clone https://github.com/dev6576/Learning-Go.git
+cd Learning-Go/banking-app
 ```
 
-### Check Balance
+2. Configure environment variables (DB connection, JWT secrets, etc.)
+3. Run database migrations for accounts and transactions tables.
+4. Start the server:
+
 ```bash
-curl "http://localhost:8080/balance?id=alice"
+go run main.go
 ```
 
-### Deposit Money
-```bash
-curl -X POST http://localhost:8080/deposit -H "Content-Type: application/json" -d "{\"id\":\"alice\",\"amount\":100}"
-```
+5. API listens on the configured port (e.g., `:8080`). Test endpoints using Postman or curl.
 
-### Transfer Money
-```bash
-curl -X POST http://localhost:8080/transfer -H "Content-Type: application/json" -d "{\"from\":\"alice\",\"to\":\"bob\",\"amount\":50}"
-```
+## Future Improvements
 
-## Test Sequence
-
-1. Create two accounts:
-```bash
-# Create first account
-curl -X POST http://localhost:8080/accounts -H "Content-Type: application/json" -d "{\"id\":\"alice\"}"
-
-# Create second account
-curl -X POST http://localhost:8080/accounts -H "Content-Type: application/json" -d "{\"id\":\"bob\"}"
-```
-
-2. Deposit money into alice's account:
-```bash
-curl -X POST http://localhost:8080/deposit -H "Content-Type: application/json" -d "{\"id\":\"alice\",\"amount\":100}"
-```
-
-3. Check alice's balance:
-```bash
-curl "http://localhost:8080/balance?id=alice"
-```
-
-4. Transfer money from alice to bob:
-```bash
-curl -X POST http://localhost:8080/transfer -H "Content-Type: application/json" -d "{\"from\":\"alice\",\"to\":\"bob\",\"amount\":50}"
-```
-
-5. Check both balances:
-```bash
-# Check alice's balance
-curl "http://localhost:8080/balance?id=alice"
-
-# Check bob's balance
-curl "http://localhost:8080/balance?id=bob"
-```
-
-## Project Structure
-
-```
-banking-app/
-├── cmd/
-│   └── server/
-│       └── main.go         # Main application entry point
-├── internal/
-│   ├── api/
-│   │   ├── handlers.go     # HTTP handlers
-│   │   └── router.go       # Router setup
-│   └── bank/
-│       ├── account.go      # Account operations
-│       ├── bank.go         # Bank operations
-│       └── errors.go       # Error definitions
-└── pkg/                    # Public packages (if any)
-```
-
-## Running the Application
-
-From the project root:
-```bash
-go run ./cmd/server/main.go
-```
+* Add worker queue monitoring and dynamic scaling of goroutines.
+* Implement more transaction types: scheduled transfers, recurring deposits.
+* Enhance concurrency handling and account locking during transfers.
+* Expand audit trail and logging features.
+* Add pagination and filtering for transaction history.
+* Introduce rate limiting and fraud detection mechanisms.
