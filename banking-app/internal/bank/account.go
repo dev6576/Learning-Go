@@ -4,17 +4,17 @@ import "sync"
 
 type Account struct {
 	ID      string
-	Balance int64
+	Balance float64
 	mu      sync.Mutex
 }
 
-func (a *Account) Deposit(amount int64) {
+func (a *Account) Deposit(amount float64) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.Balance += amount
 }
 
-func (a *Account) Withdraw(amount int64) error {
+func (a *Account) Withdraw(amount float64) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
